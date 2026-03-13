@@ -7,7 +7,7 @@
 ```
 plugin-template-sample/
 ├── frontend/                  # 前端应用（Vue 3 + TypeScript + Element Plus）
-├── backend/                   # 后端应用（Node.js + Express）
+├── backend/                   # 后端应用（Node.js + TypeScript + Express）
 ├── docs/                      # 项目文档
 ├── docker-compose.yml         # Docker 编排配置
 ├── plugins.json.example       # 主系统插件注册配置示例
@@ -79,30 +79,44 @@ frontend/
 ```
 backend/
 ├── src/
+│   ├── __tests__/
+│   │   ├── tokenService.test.ts     # Token 服务单元测试
+│   │   ├── authMiddleware.test.ts   # 认证中间件单元测试
+│   │   └── authRoutes.test.ts       # 认证路由单元测试
 │   ├── middleware/
-│   │   └── auth.js              # JWT 认证中间件（调用 Plugin Auth API 验证）
+│   │   └── auth.ts                  # JWT 认证中间件（调用 Plugin Auth API 验证）
 │   ├── routes/
-│   │   └── samples.js           # 示例功能 REST API 路由（CRUD 操作）
+│   │   ├── auth.ts                  # 认证路由（Token 刷新、登出）
+│   │   └── samples.ts              # 示例功能 REST API 路由（CRUD 操作）
+│   ├── types/
+│   │   └── index.ts                 # 共享 TypeScript 类型定义
 │   ├── utils/
-│   │   └── pluginAuth.js        # Plugin Auth API 客户端（验证 Token、检查权限）
-│   ├── db.js                    # MySQL 数据库连接池配置
-│   ├── redis.js                 # Redis 客户端连接配置
-│   └── index.js                 # Express 应用入口（中间件注册、路由挂载、错误处理）
-├── .env.example                 # 环境变量模板（数据库、Redis、主后端 API 配置）
-├── Dockerfile                   # 生产环境 Docker 镜像
-└── package.json                 # 依赖和脚本配置
+│   │   └── pluginAuth.ts           # Plugin Auth API 客户端（验证 Token、检查权限）
+│   ├── db.ts                       # MySQL 数据库连接池配置
+│   ├── redis.ts                    # Redis 客户端连接配置
+│   ├── tokenService.ts             # Refresh Token 服务（生成、验证、轮换、撤销）
+│   └── index.ts                    # Express 应用入口（中间件注册、路由挂载、错误处理）
+├── dist/                            # TypeScript 编译输出目录
+├── .env.example                     # 环境变量模板
+├── Dockerfile                       # 生产环境 Docker 镜像（多阶段构建）
+├── jest.config.ts                   # Jest 测试配置
+├── package.json                     # 依赖和脚本配置
+└── tsconfig.json                    # TypeScript 编译配置
 ```
 
 ### 核心文件说明
 
 | 文件 | 职责 |
 |------|------|
-| `index.js` | Express 应用入口，配置 CORS、注册中间件和路由、启动 HTTP 服务 |
-| `middleware/auth.js` | 认证中间件，从请求头提取 JWT Token 并调用 Plugin Auth API 验证，将用户信息注入 `req.user` |
-| `routes/samples.js` | 示例功能的 REST API，包含列表查询（分页/搜索）、创建、更新、删除操作 |
-| `utils/pluginAuth.js` | Plugin Auth API 客户端，封装 `verifyToken`、`checkPermission`、`getAllowedActions` 方法 |
-| `db.js` | MySQL 连接池配置，支持连接错误处理和自动重连 |
-| `redis.js` | Redis 客户端配置，支持连接错误处理 |
+| `index.ts` | Express 应用入口，配置 CORS、注册中间件和路由、启动 HTTP 服务 |
+| `middleware/auth.ts` | 认证中间件，从请求头提取 JWT Token 并调用 Plugin Auth API 验证，将用户信息注入 `req.user` |
+| `routes/auth.ts` | 认证路由，处理 Token 刷新和用户登出 |
+| `routes/samples.ts` | 示例功能的 REST API，包含列表查询（分页/搜索）、创建、更新、删除操作 |
+| `utils/pluginAuth.ts` | Plugin Auth API 客户端，封装 `verifyToken`、`checkPermission`、`getAllowedActions` 方法 |
+| `types/index.ts` | 共享 TypeScript 类型定义，包含 User、AuthenticatedRequest、ApiResponse 等接口 |
+| `tokenService.ts` | Refresh Token 服务，基于 Redis 实现 token 的生成、验证、轮换和撤销 |
+| `db.ts` | MySQL 连接池配置，支持连接错误处理和自动重连 |
+| `redis.ts` | Redis 客户端配置，支持连接错误处理 |
 
 ## 文档目录
 
@@ -131,7 +145,7 @@ docs/
 | `docker-compose.yml` | 编排 4 个服务：前端（Nginx，端口 3003）、后端（Express，端口 8085）、MySQL（端口 3307 映射到 3306）、Redis（端口 6380 映射到 6379） |
 | `frontend/Dockerfile` | 前端多阶段构建：先用 Node.js 构建静态文件，再用 Nginx 提供服务 |
 | `frontend/nginx.conf` | Nginx 配置：静态文件服务 + SPA 路由回退 |
-| `backend/Dockerfile` | 后端镜像：Node.js 运行环境 + Express 应用 |
+| `backend/Dockerfile` | 后端镜像：多阶段构建，TypeScript 编译 + Node.js 运行环境 |
 
 ### 插件注册
 
@@ -148,3 +162,5 @@ docs/
 | `frontend/.eslintrc.cjs` | ESLint 代码检查规则（Vue + TypeScript） |
 | `frontend/.prettierrc.cjs` | Prettier 代码格式化规则 |
 | `frontend/.vscode/settings.json` | VS Code 编辑器推荐设置（保存时自动格式化等） |
+| `backend/tsconfig.json` | TypeScript 编译选项（strict 模式、ES2020 目标） |
+| `backend/jest.config.ts` | Jest 测试配置（ts-jest 预设） |

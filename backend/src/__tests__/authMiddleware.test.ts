@@ -1,24 +1,28 @@
-const express = require('express');
-const request = require('supertest');
+import express from 'express';
+import request from 'supertest';
 
 jest.mock('axios', () => ({ get: jest.fn() }));
 jest.mock('../redis', () => ({ scard: jest.fn() }));
 jest.mock('../tokenService', () => ({ generateRefreshToken: jest.fn() }));
 
-const axios = require('axios');
-const redis = require('../redis');
-const tokenService = require('../tokenService');
-const { auth } = require('../middleware/auth');
+import axios from 'axios';
+import redis from '../redis';
+import * as tokenService from '../tokenService';
+import { auth } from '../middleware/auth';
 
-function createApp() {
+const mockedAxios = jest.mocked(axios);
+const mockedRedis = jest.mocked(redis);
+const mockedTokenService = jest.mocked(tokenService);
+
+function createApp(): express.Express {
   const app = express();
   app.use(express.json());
-  app.get('/test', auth, (req, res) => res.json({ user: req.user }));
+  app.get('/test', auth, (req, res) => res.json({ user: (req as any).user }));
   return app;
 }
 
 describe('auth middleware', () => {
-  let app;
+  let app: express.Express;
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
@@ -30,9 +34,9 @@ describe('auth middleware', () => {
   });
 
   it('should set X-Refresh-Token when user has no existing tokens', async () => {
-    axios.get.mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
-    redis.scard.mockResolvedValue(0);
-    tokenService.generateRefreshToken.mockResolvedValue('new-rt');
+    (mockedAxios.get as jest.Mock).mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
+    (mockedRedis.scard as jest.Mock).mockResolvedValue(0);
+    (mockedTokenService.generateRefreshToken as jest.Mock).mockResolvedValue('new-rt');
 
     const res = await request(app).get('/test').set('Authorization', 'Bearer valid');
     expect(res.status).toBe(200);
@@ -40,8 +44,8 @@ describe('auth middleware', () => {
   });
 
   it('should NOT set X-Refresh-Token when user already has tokens', async () => {
-    axios.get.mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
-    redis.scard.mockResolvedValue(2);
+    (mockedAxios.get as jest.Mock).mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
+    (mockedRedis.scard as jest.Mock).mockResolvedValue(2);
 
     const res = await request(app).get('/test').set('Authorization', 'Bearer valid');
     expect(res.status).toBe(200);
@@ -49,13 +53,13 @@ describe('auth middleware', () => {
   });
 
   it('should still proceed when refresh token generation fails', async () => {
-    axios.get.mockResolvedValue({ data: { code: 0, data: { id: 5, username: 'bob' } } });
-    redis.scard.mockRejectedValue(new Error('Redis down'));
+    (mockedAxios.get as jest.Mock).mockResolvedValue({ data: { code: 0, data: { id: 5, username: 'bob' } } });
+    (mockedRedis.scard as jest.Mock).mockRejectedValue(new Error('Redis down'));
     jest.spyOn(console, 'error').mockImplementation();
 
     const res = await request(app).get('/test').set('Authorization', 'Bearer valid');
     expect(res.status).toBe(200);
     expect(res.body.user).toEqual({ id: 5, username: 'bob' });
-    console.error.mockRestore();
+    (console.error as jest.Mock).mockRestore();
   });
 });

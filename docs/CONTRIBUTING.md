@@ -55,9 +55,10 @@ export default {
 </script>
 ```
 
-### 后端（JavaScript + Express）
+### 后端（TypeScript + Express）
 
-- 使用 ES Module 语法（项目未启用 ESM 时使用 CommonJS）
+- 使用 TypeScript 编写所有后端代码，避免使用 `any` 类型
+- 所有函数参数和返回值必须有明确的类型注解
 - 路由文件放在 `src/routes/` 目录下
 - 中间件文件放在 `src/middleware/` 目录下
 - 所有 API 路由必须通过认证中间件保护

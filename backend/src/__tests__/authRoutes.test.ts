@@ -1,5 +1,5 @@
-const express = require('express');
-const request = require('supertest');
+import express from 'express';
+import request from 'supertest';
 
 jest.mock('axios', () => ({ get: jest.fn(), post: jest.fn() }));
 jest.mock('../redis', () => ({ incr: jest.fn(), expire: jest.fn(), scard: jest.fn() }));
@@ -12,12 +12,16 @@ jest.mock('../tokenService', () => ({
   generateRefreshToken: jest.fn(),
 }));
 
-const axios = require('axios');
-const redis = require('../redis');
-const tokenService = require('../tokenService');
-const authRoutes = require('../routes/auth');
+import axios from 'axios';
+import redis from '../redis';
+import * as tokenService from '../tokenService';
+import authRoutes from '../routes/auth';
 
-function createApp() {
+const mockedAxios = jest.mocked(axios);
+const mockedRedis = jest.mocked(redis);
+const mockedTokenService = jest.mocked(tokenService);
+
+function createApp(): express.Express {
   const app = express();
   app.use(express.json());
   app.use('/api/auth', authRoutes);
@@ -25,11 +29,11 @@ function createApp() {
 }
 
 describe('POST /api/auth/refresh', () => {
-  let app;
+  let app: express.Express;
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
-    redis.incr.mockResolvedValue(1);
+    (mockedRedis.incr as jest.Mock).mockResolvedValue(1);
   });
 
   it('should return 400 when refreshToken missing', async () => {
@@ -38,53 +42,53 @@ describe('POST /api/auth/refresh', () => {
   });
 
   it('should return 401 on replay attack', async () => {
-    tokenService.isTokenUsed.mockResolvedValue(true);
-    tokenService.getUserIdFromUsedToken.mockResolvedValue('42');
-    tokenService.revokeAllUserTokens.mockResolvedValue();
+    (mockedTokenService.isTokenUsed as jest.Mock).mockResolvedValue(true);
+    (mockedTokenService.getUserIdFromUsedToken as jest.Mock).mockResolvedValue('42');
+    (mockedTokenService.revokeAllUserTokens as jest.Mock).mockResolvedValue(undefined);
     jest.spyOn(console, 'warn').mockImplementation();
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'reused' });
     expect(res.status).toBe(401);
-    expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith('42');
-    console.warn.mockRestore();
+    expect(mockedTokenService.revokeAllUserTokens).toHaveBeenCalledWith('42');
+    (console.warn as jest.Mock).mockRestore();
   });
 
   it('should return 401 for invalid refresh token', async () => {
-    tokenService.isTokenUsed.mockResolvedValue(false);
-    tokenService.verifyRefreshToken.mockResolvedValue(null);
+    (mockedTokenService.isTokenUsed as jest.Mock).mockResolvedValue(false);
+    (mockedTokenService.verifyRefreshToken as jest.Mock).mockResolvedValue(null);
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'bad' });
     expect(res.status).toBe(401);
   });
 
   it('should return 429 when rate limited', async () => {
-    tokenService.isTokenUsed.mockResolvedValue(false);
-    tokenService.verifyRefreshToken.mockResolvedValue('42');
-    redis.incr.mockResolvedValue(999);
+    (mockedTokenService.isTokenUsed as jest.Mock).mockResolvedValue(false);
+    (mockedTokenService.verifyRefreshToken as jest.Mock).mockResolvedValue('42');
+    (mockedRedis.incr as jest.Mock).mockResolvedValue(999);
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'ok' });
     expect(res.status).toBe(429);
   });
 
   it('should return 502 when main backend fails', async () => {
-    tokenService.isTokenUsed.mockResolvedValue(false);
-    tokenService.verifyRefreshToken.mockResolvedValue('42');
-    axios.post.mockRejectedValue(new Error('ECONNREFUSED'));
+    (mockedTokenService.isTokenUsed as jest.Mock).mockResolvedValue(false);
+    (mockedTokenService.verifyRefreshToken as jest.Mock).mockResolvedValue('42');
+    (mockedAxios.post as jest.Mock).mockRejectedValue(new Error('ECONNREFUSED'));
     jest.spyOn(console, 'error').mockImplementation();
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'ok' });
     expect(res.status).toBe(502);
-    console.error.mockRestore();
+    (console.error as jest.Mock).mockRestore();
   });
 
   it('should return new tokens on success', async () => {
-    tokenService.isTokenUsed.mockResolvedValue(false);
-    tokenService.verifyRefreshToken.mockResolvedValue('42');
-    axios.post.mockResolvedValue({ data: { code: 0, data: { accessToken: 'new-jwt' } } });
-    tokenService.rotateRefreshToken.mockResolvedValue('new-refresh');
+    (mockedTokenService.isTokenUsed as jest.Mock).mockResolvedValue(false);
+    (mockedTokenService.verifyRefreshToken as jest.Mock).mockResolvedValue('42');
+    (mockedAxios.post as jest.Mock).mockResolvedValue({ data: { code: 0, data: { accessToken: 'new-jwt' } } });
+    (mockedTokenService.rotateRefreshToken as jest.Mock).mockResolvedValue('new-refresh');
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'old' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ accessToken: 'new-jwt', refreshToken: 'new-refresh' });
-    expect(axios.post).toHaveBeenCalledWith(
+    expect(mockedAxios.post).toHaveBeenCalledWith(
       expect.stringContaining('/v1/plugin/refresh-token'),
       { userId: '42' }
     );
@@ -92,7 +96,7 @@ describe('POST /api/auth/refresh', () => {
 });
 
 describe('POST /api/auth/logout', () => {
-  let app;
+  let app: express.Express;
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
@@ -104,14 +108,14 @@ describe('POST /api/auth/logout', () => {
   });
 
   it('should revoke tokens on success', async () => {
-    axios.get.mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
-    redis.scard.mockResolvedValue(1);
-    tokenService.revokeAllUserTokens.mockResolvedValue();
+    (mockedAxios.get as jest.Mock).mockResolvedValue({ data: { code: 0, data: { id: 42, username: 'alice' } } });
+    (mockedRedis.scard as jest.Mock).mockResolvedValue(1);
+    (mockedTokenService.revokeAllUserTokens as jest.Mock).mockResolvedValue(undefined);
 
     const res = await request(app)
       .post('/api/auth/logout')
       .set('Authorization', 'Bearer valid');
     expect(res.status).toBe(200);
-    expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith('42');
+    expect(mockedTokenService.revokeAllUserTokens).toHaveBeenCalledWith('42');
   });
 });

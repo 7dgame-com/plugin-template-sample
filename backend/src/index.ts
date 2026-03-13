@@ -4,23 +4,24 @@
  * 配置 Express 应用，注册中间件和路由，启动 HTTP 服务器。
  *
  * 启动方式：
- *   node src/index.js
+ *   node dist/index.js
  *   或
  *   npm start
  */
 
-require('dotenv').config();
+import 'dotenv/config';
 
-const express = require('express');
-const cors = require('cors');
-const { pool } = require('./db');
-const redis = require('./redis');
-const { auth } = require('./middleware/auth');
-const sampleRoutes = require('./routes/samples');
-const authRoutes = require('./routes/auth');
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import { pool } from './db';
+import redis from './redis';
+import { auth } from './middleware/auth';
+import sampleRoutes from './routes/samples';
+import authRoutes from './routes/auth';
+import { HealthStatus } from './types';
 
 const app = express();
-const PORT = process.env.PORT || 8085;
+const PORT: string | number = process.env.PORT || 8085;
 
 // ========== CORS 配置 ==========
 // 允许前端开发服务器和生产环境的域名访问
@@ -40,22 +41,25 @@ app.use(express.json());
 // ========== 健康检查 ==========
 // 不需要认证，用于 Docker 健康检查和运维监控
 const APP_VERSION = '1.0.0';
-app.get('/api/health', async (_req, res) => {
+app.get('/api/health', async (_req: Request, res: Response) => {
   try {
     await pool.query('SELECT 1');
     await redis.ping();
-    res.json({
+    const response: HealthStatus = {
       status: 'ok',
       version: APP_VERSION,
       db: 'connected',
       redis: 'connected',
-    });
-  } catch (err) {
-    res.status(500).json({
+    };
+    res.json(response);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const response: HealthStatus = {
       status: 'error',
       version: APP_VERSION,
-      message: err.message,
-    });
+      message,
+    };
+    res.status(500).json(response);
   }
 });
 
@@ -67,8 +71,7 @@ app.use('/api/samples', auth, sampleRoutes);
 
 // ========== 全局错误处理 ==========
 // 捕获未处理的路由错误，返回统一格式的错误响应
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
+app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Server] 未处理的错误:', err.message);
   res.status(err.status || 500).json({
     error: err.message || '服务器内部错误',

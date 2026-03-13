@@ -11,33 +11,36 @@
  * 无权限时返回 403 错误。
  */
 
-const express = require('express');
-const { pool } = require('../db');
-const redis = require('../redis');
-const { checkPermission } = require('../utils/pluginAuth');
+import { Router, Request, Response, NextFunction } from 'express';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { pool } from '../db';
+import redis from '../redis';
+import { checkPermission } from '../utils/pluginAuth';
+import { AuthenticatedRequest, ValidationResult, CreateSampleBody, UpdateSampleBody } from '../types';
 
-const router = express.Router();
+const router: Router = Router();
 const CACHE_TTL = 300; // 缓存 5 分钟
 
 // ========== 权限检查中间件工厂 ==========
 
 /**
  * 创建权限检查中间件
- * @param {string} action - 操作标识，如 'view-sample'
- * @returns {Function} Express 中间件
+ * @param action - 操作标识，如 'view-sample'
+ * @returns Express 中间件
  */
-function requirePermission(action) {
-  return async (req, res, next) => {
+function requirePermission(action: string) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const header = req.headers.authorization;
     try {
-      const allowed = await checkPermission(header, action);
+      const allowed = await checkPermission(header as string, action);
       if (allowed) {
         next();
       } else {
         res.status(403).json({ error: '无权限执行此操作' });
       }
-    } catch (err) {
-      console.error(`[Samples] 权限检查失败 (${action}):`, err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[Samples] 权限检查失败 (${action}):`, message);
       res.status(403).json({ error: '权限检查失败' });
     }
   };
@@ -47,12 +50,12 @@ function requirePermission(action) {
 
 /**
  * 验证创建/更新请求体
- * @param {object} body - 请求体
- * @param {boolean} isUpdate - 是否为更新操作
- * @returns {{ valid: boolean, error?: string }}
+ * @param body - 请求体
+ * @param isUpdate - 是否为更新操作
+ * @returns 验证结果
  */
-function validateSampleBody(body, isUpdate = false) {
-  const { name, description } = body;
+export function validateSampleBody(body: CreateSampleBody | UpdateSampleBody, isUpdate = false): ValidationResult {
+  const { name, description } = body as CreateSampleBody;
 
   // 创建时 name 必填
   if (!isUpdate && (name === undefined || name === null)) {
@@ -85,21 +88,22 @@ function validateSampleBody(body, isUpdate = false) {
 /**
  * 清除列表缓存
  */
-async function clearListCache() {
+async function clearListCache(): Promise<void> {
   try {
     // 使用 SCAN 查找匹配的 key（keyPrefix 已在 redis 配置中设置）
     const stream = redis.scanStream({ match: 'samples:list:*', count: 100 });
-    const keysToDelete = [];
+    const keysToDelete: string[] = [];
     for await (const keys of stream) {
-      keysToDelete.push(...keys);
+      keysToDelete.push(...(keys as string[]));
     }
     if (keysToDelete.length > 0) {
       // ioredis 的 keyPrefix 会自动添加前缀，删除时需要去掉前缀
       const rawKeys = keysToDelete.map((k) => k.replace('plugin-tpl:', ''));
       await redis.del(...rawKeys);
     }
-  } catch (err) {
-    console.warn('[Samples] 清除缓存失败:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn('[Samples] 清除缓存失败:', message);
   }
 }
 
@@ -114,11 +118,11 @@ async function clearListCache() {
  * - pageSize: 每页条数（默认 20，最大 100）
  * - keyword: 搜索关键词（按名称模糊匹配）
  */
-router.get('/', requirePermission('view-sample'), async (req, res) => {
+router.get('/', requirePermission('view-sample'), async (req: Request, res: Response) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 20));
-    const keyword = req.query.keyword || '';
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string) || 20));
+    const keyword = (req.query.keyword as string) || '';
     const offset = (page - 1) * pageSize;
 
     // 尝试从缓存读取
@@ -130,20 +134,20 @@ router.get('/', requirePermission('view-sample'), async (req, res) => {
 
     // 构建查询条件
     let where = 'WHERE 1=1';
-    const params = [];
+    const params: (string | number)[] = [];
     if (keyword) {
       where += ' AND name LIKE ?';
       params.push(`%${keyword}%`);
     }
 
     // 查询总数
-    const [countResult] = await pool.query(
+    const [countResult] = await pool.query<RowDataPacket[]>(
       `SELECT COUNT(*) as total FROM samples ${where}`,
       params
     );
 
     // 查询列表
-    const [rows] = await pool.query(
+    const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT id, name, description, status, created_by, created_at, updated_at
        FROM samples ${where}
        ORDER BY id DESC LIMIT ? OFFSET ?`,
@@ -164,8 +168,9 @@ router.get('/', requirePermission('view-sample'), async (req, res) => {
     await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
 
     res.json(result);
-  } catch (err) {
-    console.error('[Samples] 获取列表失败:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Samples] 获取列表失败:', message);
     res.status(500).json({ error: '获取列表失败' });
   }
 });
@@ -179,10 +184,10 @@ router.get('/', requirePermission('view-sample'), async (req, res) => {
  * - description: 描述（可选）
  * - status: 状态（可选，默认 1）
  */
-router.post('/', requirePermission('create-sample'), async (req, res) => {
+router.post('/', requirePermission('create-sample'), async (req: Request, res: Response) => {
   try {
     // 验证请求体
-    const validation = validateSampleBody(req.body, false);
+    const validation = validateSampleBody(req.body as CreateSampleBody, false);
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
     }
@@ -192,7 +197,7 @@ router.post('/', requirePermission('create-sample'), async (req, res) => {
     const now = new Date();
 
     // 检查名称是否重复
-    const [existing] = await pool.query(
+    const [existing] = await pool.query<RowDataPacket[]>(
       'SELECT id FROM samples WHERE name = ?',
       [trimmedName]
     );
@@ -201,24 +206,25 @@ router.post('/', requirePermission('create-sample'), async (req, res) => {
     }
 
     // 插入记录
-    const [result] = await pool.query(
+    const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO samples (name, description, status, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [trimmedName, description, status, req.user.id, now, now]
+      [trimmedName, description, status, (req as AuthenticatedRequest).user.id, now, now]
     );
 
     // 清除列表缓存
     await clearListCache();
 
     // 返回新创建的记录
-    const [newRow] = await pool.query(
+    const [newRow] = await pool.query<RowDataPacket[]>(
       'SELECT id, name, description, status, created_by, created_at, updated_at FROM samples WHERE id = ?',
       [result.insertId]
     );
 
     res.status(201).json(newRow[0]);
-  } catch (err) {
-    console.error('[Samples] 创建失败:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Samples] 创建失败:', message);
     res.status(500).json({ error: '创建失败' });
   }
 });
@@ -232,22 +238,22 @@ router.post('/', requirePermission('create-sample'), async (req, res) => {
  * - description: 描述
  * - status: 状态
  */
-router.put('/:id', requirePermission('update-sample'), async (req, res) => {
+router.put('/:id', requirePermission('update-sample'), async (req: Request, res: Response) => {
   try {
     // 验证请求体
-    const validation = validateSampleBody(req.body, true);
+    const validation = validateSampleBody(req.body as UpdateSampleBody, true);
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
     }
 
     const { name, description, status } = req.body;
-    const updates = [];
-    const params = [];
+    const updates: string[] = [];
+    const params: unknown[] = [];
 
     if (name !== undefined) {
       const trimmedName = String(name).trim();
       // 检查名称是否与其他记录重复
-      const [existing] = await pool.query(
+      const [existing] = await pool.query<RowDataPacket[]>(
         'SELECT id FROM samples WHERE name = ? AND id != ?',
         [trimmedName, req.params.id]
       );
@@ -274,7 +280,7 @@ router.put('/:id', requirePermission('update-sample'), async (req, res) => {
     params.push(new Date());
     params.push(req.params.id);
 
-    const [result] = await pool.query(
+    const [result] = await pool.query<ResultSetHeader>(
       `UPDATE samples SET ${updates.join(', ')} WHERE id = ?`,
       params
     );
@@ -287,14 +293,15 @@ router.put('/:id', requirePermission('update-sample'), async (req, res) => {
     await clearListCache();
 
     // 返回更新后的记录
-    const [updatedRow] = await pool.query(
+    const [updatedRow] = await pool.query<RowDataPacket[]>(
       'SELECT id, name, description, status, created_by, created_at, updated_at FROM samples WHERE id = ?',
       [req.params.id]
     );
 
     res.json(updatedRow[0]);
-  } catch (err) {
-    console.error('[Samples] 更新失败:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Samples] 更新失败:', message);
     res.status(500).json({ error: '更新失败' });
   }
 });
@@ -303,9 +310,9 @@ router.put('/:id', requirePermission('update-sample'), async (req, res) => {
  * DELETE /api/samples/:id
  * 删除示例记录
  */
-router.delete('/:id', requirePermission('delete-sample'), async (req, res) => {
+router.delete('/:id', requirePermission('delete-sample'), async (req: Request, res: Response) => {
   try {
-    const [result] = await pool.query(
+    const [result] = await pool.query<ResultSetHeader>(
       'DELETE FROM samples WHERE id = ?',
       [req.params.id]
     );
@@ -318,10 +325,11 @@ router.delete('/:id', requirePermission('delete-sample'), async (req, res) => {
     await clearListCache();
 
     res.json({ message: '删除成功' });
-  } catch (err) {
-    console.error('[Samples] 删除失败:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Samples] 删除失败:', message);
     res.status(500).json({ error: '删除失败' });
   }
 });
 
-module.exports = router;
+export default router;

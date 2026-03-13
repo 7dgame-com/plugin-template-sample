@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 jest.mock('../redis', () => {
   const pipeline = {
@@ -21,8 +21,10 @@ jest.mock('../redis', () => {
   };
 });
 
-const redis = require('../redis');
-const tokenService = require('../tokenService');
+import redis from '../redis';
+import * as tokenService from '../tokenService';
+
+const mockedRedis = redis as jest.Mocked<typeof redis> & { __pipeline: Record<string, jest.Mock> };
 
 describe('tokenService', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -39,7 +41,7 @@ describe('tokenService', () => {
     it('should return a 64-char hex string and store in Redis', async () => {
       const token = await tokenService.generateRefreshToken('42');
       expect(token).toHaveLength(64);
-      const pl = redis.__pipeline;
+      const pl = mockedRedis.__pipeline;
       expect(pl.sadd).toHaveBeenCalledWith('refresh_token:42', expect.any(String));
       expect(pl.hset).toHaveBeenCalled();
       expect(pl.exec).toHaveBeenCalled();
@@ -49,14 +51,14 @@ describe('tokenService', () => {
   describe('verifyRefreshToken', () => {
     it('should return userId for valid token', async () => {
       const now = Math.floor(Date.now() / 1000);
-      redis.hgetall.mockResolvedValue({ userId: '42', expiresAt: String(now + 3600) });
-      redis.sismember.mockResolvedValue(1);
+      (mockedRedis.hgetall as jest.Mock).mockResolvedValue({ userId: '42', expiresAt: String(now + 3600) });
+      (mockedRedis.sismember as jest.Mock).mockResolvedValue(1);
       expect(await tokenService.verifyRefreshToken('valid')).toBe('42');
     });
 
     it('should return null for empty/expired/missing token', async () => {
-      expect(await tokenService.verifyRefreshToken(null)).toBeNull();
-      redis.hgetall.mockResolvedValue({});
+      expect(await tokenService.verifyRefreshToken(null as unknown as string)).toBeNull();
+      (mockedRedis.hgetall as jest.Mock).mockResolvedValue({});
       expect(await tokenService.verifyRefreshToken('x')).toBeNull();
     });
   });
@@ -65,7 +67,7 @@ describe('tokenService', () => {
     it('should revoke old and generate new', async () => {
       const result = await tokenService.rotateRefreshToken('old', '42');
       expect(result).toHaveLength(64);
-      const pl = redis.__pipeline;
+      const pl = mockedRedis.__pipeline;
       expect(pl.srem).toHaveBeenCalled();
       expect(pl.set).toHaveBeenCalled();
     });
@@ -73,19 +75,19 @@ describe('tokenService', () => {
 
   describe('isTokenUsed', () => {
     it('should detect used tokens', async () => {
-      redis.exists.mockResolvedValue(1);
+      (mockedRedis.exists as jest.Mock).mockResolvedValue(1);
       expect(await tokenService.isTokenUsed('used')).toBe(true);
-      redis.exists.mockResolvedValue(0);
+      (mockedRedis.exists as jest.Mock).mockResolvedValue(0);
       expect(await tokenService.isTokenUsed('fresh')).toBe(false);
-      expect(await tokenService.isTokenUsed(null)).toBe(false);
+      expect(await tokenService.isTokenUsed(null as unknown as string)).toBe(false);
     });
   });
 
   describe('revokeAllUserTokens', () => {
     it('should delete all token data', async () => {
-      redis.smembers.mockResolvedValue(['h1', 'h2']);
+      (mockedRedis.smembers as jest.Mock).mockResolvedValue(['h1', 'h2']);
       await tokenService.revokeAllUserTokens('42');
-      const pl = redis.__pipeline;
+      const pl = mockedRedis.__pipeline;
       expect(pl.del).toHaveBeenCalledWith('refresh_token_data:h1');
       expect(pl.del).toHaveBeenCalledWith('refresh_token_data:h2');
       expect(pl.del).toHaveBeenCalledWith('refresh_token:42');
@@ -94,11 +96,11 @@ describe('tokenService', () => {
 
   describe('getUserIdFromUsedToken', () => {
     it('should return userId or null', async () => {
-      redis.get.mockResolvedValue('42');
+      (mockedRedis.get as jest.Mock).mockResolvedValue('42');
       expect(await tokenService.getUserIdFromUsedToken('t')).toBe('42');
-      redis.get.mockResolvedValue('1');
+      (mockedRedis.get as jest.Mock).mockResolvedValue('1');
       expect(await tokenService.getUserIdFromUsedToken('t')).toBeNull();
-      expect(await tokenService.getUserIdFromUsedToken(null)).toBeNull();
+      expect(await tokenService.getUserIdFromUsedToken(null as unknown as string)).toBeNull();
     });
   });
 });

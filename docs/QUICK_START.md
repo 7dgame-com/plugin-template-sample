@@ -222,7 +222,7 @@ cd plugins/my-plugin
 
 - 将 `frontend/src/views/SampleList.vue` 和 `SampleForm.vue` 替换为你的业务页面
 - 将 `frontend/src/stores/sample.ts` 替换为你的状态管理
-- 将 `backend/src/routes/samples.js` 替换为你的 API 路由
+- 将 `backend/src/routes/samples.ts` 替换为你的 API 路由
 - 更新 `frontend/src/api/index.ts` 中的 API 方法
 - 更新 `frontend/src/router/index.ts` 中的路由配置
 
@@ -247,7 +247,7 @@ cd plugins/my-plugin
 ### 添加新 API
 
 1. 在 `backend/src/routes/` 下创建新的路由文件
-2. 在 `backend/src/index.js` 中注册路由
+2. 在 `backend/src/index.ts` 中注册路由
 3. 在 `frontend/src/api/index.ts` 中添加对应的请求方法
 
 ### 添加新的 Pinia Store

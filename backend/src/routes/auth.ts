@@ -12,22 +12,23 @@
  * 4. 返回 { accessToken, refreshToken }
  */
 
-const express = require('express');
-const axios = require('axios');
-const tokenService = require('../tokenService');
-const redis = require('../redis');
-const { auth } = require('../middleware/auth');
+import { Router, Request, Response } from 'express';
+import axios from 'axios';
+import * as tokenService from '../tokenService';
+import redis from '../redis';
+import { auth } from '../middleware/auth';
+import { AuthenticatedRequest } from '../types';
 
-const router = express.Router();
+const router: Router = Router();
 
-const MAIN_API_BASE = process.env.MAIN_API_URL || 'http://localhost:8091';
-const REFRESH_RATE_LIMIT = parseInt(process.env.REFRESH_RATE_LIMIT || '10', 10);
+const MAIN_API_BASE: string = process.env.MAIN_API_URL || 'http://localhost:8091';
+const REFRESH_RATE_LIMIT: number = parseInt(process.env.REFRESH_RATE_LIMIT || '10', 10);
 const RATE_LIMIT_WINDOW = 60; // seconds
 
 /**
  * 速率限制检查
  */
-async function checkRateLimit(userId) {
+async function checkRateLimit(userId: string): Promise<boolean> {
   const key = `rate_limit:refresh:${userId}`;
   const current = await redis.incr(key);
   if (current === 1) {
@@ -39,7 +40,7 @@ async function checkRateLimit(userId) {
 /**
  * POST /api/auth/refresh
  */
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
 
   if (!refreshToken) {
@@ -71,7 +72,7 @@ router.post('/refresh', async (req, res) => {
     }
 
     // 调用主后端获取新 access token
-    let accessToken;
+    let accessToken: string;
     try {
       const response = await axios.post(`${MAIN_API_BASE}/v1/plugin/refresh-token`, { userId });
       if (response.data.code === 0) {
@@ -80,8 +81,9 @@ router.post('/refresh', async (req, res) => {
         console.error('[Auth] Main backend refresh failed:', response.data.message);
         return res.status(502).json({ error: '认证服务暂时不可用' });
       }
-    } catch (err) {
-      console.error('[Auth] Main backend unavailable:', err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[Auth] Main backend unavailable:', message);
       return res.status(502).json({ error: '认证服务暂时不可用' });
     }
 
@@ -89,8 +91,9 @@ router.post('/refresh', async (req, res) => {
     const newRefreshToken = await tokenService.rotateRefreshToken(refreshToken, userId);
 
     return res.json({ accessToken, refreshToken: newRefreshToken });
-  } catch (err) {
-    console.error('[Auth] Refresh token error:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Auth] Refresh token error:', message);
     return res.status(500).json({ error: '服务内部错误' });
   }
 });
@@ -99,15 +102,16 @@ router.post('/refresh', async (req, res) => {
  * POST /api/auth/logout
  * 需要认证
  */
-router.post('/logout', auth, async (req, res) => {
+router.post('/logout', auth, async (req: Request, res: Response) => {
   try {
-    const userId = String(req.user.id);
+    const userId = String((req as AuthenticatedRequest).user.id);
     await tokenService.revokeAllUserTokens(userId);
     return res.json({ message: '登出成功' });
-  } catch (err) {
-    console.error('[Auth] Logout error:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Auth] Logout error:', message);
     return res.status(500).json({ error: '服务内部错误' });
   }
 });
 
-module.exports = router;
+export default router;

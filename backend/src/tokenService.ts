@@ -14,24 +14,25 @@
  * - STR  refresh_token_used:{tokenHash}   → userId（已使用的旧 token，用于重放检测）
  */
 
-const crypto = require('crypto');
-const redis = require('./redis');
+import crypto from 'crypto';
+import redis from './redis';
+import { TokenMetadata } from './types';
 
-const REFRESH_TOKEN_TTL = parseInt(process.env.REFRESH_TOKEN_TTL || '604800', 10); // 7 days
+const REFRESH_TOKEN_TTL: number = parseInt(process.env.REFRESH_TOKEN_TTL || '604800', 10); // 7 days
 
 /**
  * 对 token 进行 SHA-256 哈希
  */
-function hashToken(token) {
+export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
  * 生成并存储 refresh token
- * @param {string} userId
- * @returns {Promise<string>} 原始 token 字符串
+ * @param userId - 用户 ID
+ * @returns 原始 token 字符串
  */
-async function generateRefreshToken(userId) {
+export async function generateRefreshToken(userId: string): Promise<string> {
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashToken(rawToken);
 
@@ -51,18 +52,19 @@ async function generateRefreshToken(userId) {
   return rawToken;
 }
 
+
 /**
  * 验证 refresh token 的有效性
- * @param {string} token - 原始 token 字符串
- * @returns {Promise<string|null>} 有效时返回 userId，否则返回 null
+ * @param token - 原始 token 字符串
+ * @returns 有效时返回 userId，否则返回 null
  */
-async function verifyRefreshToken(token) {
+export async function verifyRefreshToken(token: string): Promise<string | null> {
   if (!token) return null;
 
   const tokenHash = hashToken(token);
   const dataKey = `refresh_token_data:${tokenHash}`;
 
-  const metadata = await redis.hgetall(dataKey);
+  const metadata = (await redis.hgetall(dataKey)) as unknown as TokenMetadata;
   if (!metadata || !metadata.userId) return null;
 
   const { userId, expiresAt } = metadata;
@@ -77,11 +79,11 @@ async function verifyRefreshToken(token) {
 
 /**
  * 轮换 refresh token：使旧 token 失效，生成新 token
- * @param {string} oldToken - 旧的原始 token 字符串
- * @param {string} userId
- * @returns {Promise<string>} 新的原始 token 字符串
+ * @param oldToken - 旧的原始 token 字符串
+ * @param userId - 用户 ID
+ * @returns 新的原始 token 字符串
  */
-async function rotateRefreshToken(oldToken, userId) {
+export async function rotateRefreshToken(oldToken: string, userId: string): Promise<string> {
   const oldTokenHash = hashToken(oldToken);
 
   const pipeline = redis.pipeline();
@@ -95,8 +97,10 @@ async function rotateRefreshToken(oldToken, userId) {
 
 /**
  * 检测 token 是否已被使用过（重放攻击检测）
+ * @param token - 原始 token 字符串
+ * @returns 是否已被使用
  */
-async function isTokenUsed(token) {
+export async function isTokenUsed(token: string): Promise<boolean> {
   if (!token) return false;
   const tokenHash = hashToken(token);
   return (await redis.exists(`refresh_token_used:${tokenHash}`)) === 1;
@@ -104,8 +108,10 @@ async function isTokenUsed(token) {
 
 /**
  * 获取已使用 token 关联的用户 ID
+ * @param token - 原始 token 字符串
+ * @returns 用户 ID 或 null
  */
-async function getUserIdFromUsedToken(token) {
+export async function getUserIdFromUsedToken(token: string): Promise<string | null> {
   if (!token) return null;
   const tokenHash = hashToken(token);
   const value = await redis.get(`refresh_token_used:${tokenHash}`);
@@ -114,8 +120,9 @@ async function getUserIdFromUsedToken(token) {
 
 /**
  * 撤销用户的所有 refresh token
+ * @param userId - 用户 ID
  */
-async function revokeAllUserTokens(userId) {
+export async function revokeAllUserTokens(userId: string): Promise<void> {
   const setKey = `refresh_token:${userId}`;
   const tokenHashes = await redis.smembers(setKey);
 
@@ -126,13 +133,3 @@ async function revokeAllUserTokens(userId) {
   pipeline.del(setKey);
   await pipeline.exec();
 }
-
-module.exports = {
-  hashToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  rotateRefreshToken,
-  isTokenUsed,
-  getUserIdFromUsedToken,
-  revokeAllUserTokens,
-};

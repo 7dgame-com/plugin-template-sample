@@ -5,13 +5,13 @@
  * 连接参数从环境变量读取，使用 keyPrefix 避免不同插件之间的 key 冲突。
  *
  * 使用示例：
- *   const redis = require('./redis');
+ *   import redis from './redis';
  *   await redis.set('key', 'value', 'EX', 3600);
  *   const val = await redis.get('key');
  */
 
-require('dotenv').config();
-const Redis = require('ioredis');
+import 'dotenv/config';
+import Redis from 'ioredis';
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
@@ -20,7 +20,7 @@ const redis = new Redis({
   // key 前缀，避免与其他插件冲突（请根据插件名称修改）
   keyPrefix: 'plugin-tpl:',
   // 自动重连配置
-  retryStrategy(times) {
+  retryStrategy(times: number): number {
     const delay = Math.min(times * 200, 5000);
     console.warn(`[Redis] 第 ${times} 次重连，${delay}ms 后重试...`);
     return delay;
@@ -33,8 +33,8 @@ redis.on('connect', () => {
 });
 
 // 连接错误
-redis.on('error', (err) => {
+redis.on('error', (err: Error) => {
   console.error('[Redis] 连接错误:', err.message);
 });
 
-module.exports = redis;
+export default redis;
