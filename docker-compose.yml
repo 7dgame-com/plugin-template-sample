@@ -1,0 +1,99 @@
+# ============================================================
+# 插件模板示例 - Docker Compose 配置
+# ============================================================
+# 包含 4 个服务：
+#   - frontend: Vue 3 前端（Nginx 服务，端口 3003）
+#   - backend:  Express 后端 API（端口 8085）
+#   - mysql:    MySQL 数据库（端口 3306）
+#   - redis:    Redis 缓存（端口 6379）
+#
+# 启动命令：
+#   docker-compose up -d
+#
+# 停止命令：
+#   docker-compose down
+#
+# 查看日志：
+#   docker-compose logs -f
+# ============================================================
+
+services:
+  # ========== 前端服务 ==========
+  # Vue 3 + Nginx，提供 SPA 静态文件服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3003:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ========== 后端服务 ==========
+  # Node.js + Express API 服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8085
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=plugin_template
+      - DB_USER=root
+      - DB_PASSWORD=root123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=2
+      - MAIN_API_URL=http://host.docker.internal:8082
+      - PLUGIN_NAME=plugin-template-sample
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ========== MySQL 数据库 ==========
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123
+      - MYSQL_DATABASE=plugin_template
+      - MYSQL_CHARSET=utf8mb4
+      - MYSQL_COLLATION=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========== Redis 缓存 ==========
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# ========== 数据卷 ==========
+# 持久化存储，避免容器重启后数据丢失
+volumes:
+  mysql_data:
+  redis_data:

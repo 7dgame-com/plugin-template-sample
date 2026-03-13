@@ -1,0 +1,76 @@
+{
+  "_说明": "此文件是插件注册配置示例，展示如何将本插件注册到主系统中。",
+  "_使用方法": "将下方 plugins 数组中的插件条目复制到主系统的 web/public/config/plugins.json 文件的 plugins 数组中即可完成注册。",
+  "_注意事项": [
+    "1. 插件 id 必须全局唯一，建议使用 kebab-case 命名",
+    "2. url 和 allowedOrigin 在开发环境和生产环境中需要分别配置",
+    "3. group 必须对应 menuGroups 中已定义的分组 id",
+    "4. icon 使用 Element Plus Icons 的组件名称，参考: https://element-plus.org/zh-CN/component/icon.html",
+    "5. extraConfig.apiBaseUrl 仅 Full_Stack_Plugin（前后端分离插件）需要配置",
+    "6. Frontend_Only_Plugin（纯前端插件）不需要 extraConfig.apiBaseUrl 字段",
+    "7. order 决定插件在侧边栏中的排列顺序，数字越小越靠前"
+  ],
+
+  "_字段说明": {
+    "id": "插件唯一标识符，用于路由和权限匹配（必填）",
+    "name": "插件显示名称，显示在侧边栏菜单中（必填）",
+    "description": "插件功能描述，用于管理界面展示（必填）",
+    "url": "插件前端访问地址，主系统通过 iframe 加载此地址（必填）",
+    "icon": "Element Plus 图标组件名称，显示在侧边栏菜单中（必填）",
+    "group": "所属菜单分组 id，必须在 menuGroups 中预先定义（必填）",
+    "enabled": "是否启用插件，设为 false 可临时禁用（必填）",
+    "order": "在分组内的排列顺序，数字越小越靠前（必填）",
+    "allowedOrigin": "允许的跨域来源，用于 PostMessage 通信安全验证（必填）",
+    "version": "插件版本号，遵循语义化版本规范（必填）",
+    "extraConfig": "插件额外配置（可选，仅 Full_Stack_Plugin 需要）",
+    "extraConfig.apiBaseUrl": "插件后端 API 基础地址，前端通过此地址调用插件后端接口"
+  },
+
+  "_权限配置说明": {
+    "说明": "插件权限通过主系统后台管理界面配置，不在此文件中定义。",
+    "配置路径": "主系统后台 → 插件管理 → 权限设置",
+    "权限动作示例": {
+      "view-sample": "查看示例数据列表",
+      "create-sample": "创建新的示例数据",
+      "update-sample": "编辑已有的示例数据",
+      "delete-sample": "删除示例数据"
+    },
+    "权限验证流程": [
+      "1. 前端调用 Plugin Auth API 的 check-permission 接口验证权限",
+      "2. 后端在处理请求前调用 Plugin Auth API 验证用户权限",
+      "3. 无权限时前端隐藏操作按钮，后端返回 403 错误"
+    ]
+  },
+
+  "_开发环境配置": {
+    "前端地址": "http://localhost:5174",
+    "后端API地址": "http://localhost:8085/api",
+    "说明": "开发环境使用 Vite Dev Server，端口可在 vite.config.ts 中修改"
+  },
+
+  "_生产环境配置": {
+    "前端地址": "http://localhost:3003",
+    "后端API地址": "http://localhost:8085/api",
+    "说明": "生产环境使用 Docker 部署，端口在 docker-compose.yml 中配置"
+  },
+
+  "_示例：将以下插件条目添加到主系统 plugins.json 的 plugins 数组中": "↓↓↓",
+
+  "plugins": [
+    {
+      "id": "plugin-template-sample",
+      "name": "插件模板示例",
+      "description": "插件开发模板，展示完整的前后端分离插件架构和 CRUD 示例功能",
+      "url": "http://localhost:5174",
+      "icon": "Document",
+      "group": "tools",
+      "enabled": true,
+      "order": 3,
+      "allowedOrigin": "http://localhost:5174",
+      "version": "1.0.0",
+      "extraConfig": {
+        "apiBaseUrl": "http://localhost:8085/api"
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# 环境变量（包含敏感信息，不提交到仓库）
+.env
+
+# 依赖目录
+node_modules/
+
+# 构建产物
+dist/
+
+# Docker 相关临时文件
+docker-compose.override.yml
+
+# 编辑器
+.idea/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+
+# 测试覆盖率
+coverage/
