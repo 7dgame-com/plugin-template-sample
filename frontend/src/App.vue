@@ -16,14 +16,14 @@
  * 根组件
  *
  * 职责：
- * 1. 初始化 PostMessage 通信桥接（usePluginBridge）
+ * 1. 初始化 PostMessage 通信桥接（usePluginMessageBridge）
  * 2. 初始化主题适配（useTheme）
  * 3. 管理认证状态，控制页面渲染
  * 4. 全局错误处理
  */
 import { ref, onMounted, onErrorCaptured } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { usePluginBridge } from './composables/usePluginBridge'
+import { usePluginMessageBridge } from './composables/usePluginMessageBridge'
 import { useTheme } from './composables/useTheme'
 import { getToken, setToken, removeToken, isInIframe, listenForParentToken } from './utils/token'
 
@@ -33,7 +33,7 @@ const { t } = useI18n()
 useTheme()
 
 // 初始化 PostMessage 通信桥接
-const { isReady } = usePluginBridge({
+const { isReady, token: bridgeToken } = usePluginMessageBridge({
   onInit: (payload) => {
     // 收到 INIT 消息，保存 Token 并更新状态
     if (payload.token) {
@@ -42,10 +42,10 @@ const { isReady } = usePluginBridge({
       waiting.value = false
     }
   },
-  onTokenUpdate: (payload) => {
+  onTokenUpdate: (newToken) => {
     // Token 刷新，更新本地存储
-    if (payload.token) {
-      setToken(payload.token)
+    if (newToken) {
+      setToken(newToken)
     }
   },
   onDestroy: () => {

@@ -1,3 +1,5 @@
+/** @deprecated Use usePluginMessageBridge instead. This file will be removed in a future version. */
+
 import { ref, onMounted, onUnmounted } from 'vue'
 
 /**
