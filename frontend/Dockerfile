@@ -29,7 +29,7 @@ RUN npm install
 COPY . .
 
 # 构建生产版本
-RUN npm run build
+RUN npx vite build
 
 # ========== 第二阶段：Nginx 服务 ==========
 FROM nginx:alpine
