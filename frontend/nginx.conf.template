@@ -1,12 +1,22 @@
 # ============================================================
-# 插件模板示例 - 前端 Nginx 配置
+# 插件模板示例 - 前端 Nginx 配置模板
 # ============================================================
 # 功能：
 #   - 提供 Vue 3 SPA 静态文件服务
 #   - 支持 HTML5 History 模式路由（所有路径回退到 index.html）
 #   - 配置静态资源缓存策略
 #   - 启用 Gzip 压缩
+#   - 支持 split_clients 加权负载均衡（由 docker-entrypoint.sh 动态注入）
+#
+# 占位符说明：
+#   # __RESOLVER__      → 注入 DNS resolver 配置（http 层级）
+#   # __LB_HTTP_BLOCK__ → 注入 split_clients + map 配置（http 层级）
+#   # __API_LOCATIONS__ → 注入 API 反向代理 location 块（server 层级）
 # ============================================================
+
+# __RESOLVER__
+
+# __LB_HTTP_BLOCK__
 
 server {
     listen 80;
@@ -20,6 +30,9 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
     gzip_min_length 1024;
+
+    # ========== API 反向代理（由 docker-entrypoint.sh 动态注入）==========
+    # __API_LOCATIONS__
 
     # ========== SPA 路由支持 ==========
     # Vue Router 使用 HTML5 History 模式时，

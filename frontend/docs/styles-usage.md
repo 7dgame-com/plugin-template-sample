@@ -50,6 +50,8 @@ app.mount('#app')
 --bg-card                /* 卡片/容器背景 */
 --bg-hover               /* 悬停态背景 */
 --bg-active              /* 激活态背景 */
+--bg-secondary           /* 次要背景 */
+--bg-tertiary            /* 第三级背景 */
 
 /* 边框颜色 */
 --border-color           /* 标准边框 */
@@ -58,9 +60,13 @@ app.mount('#app')
 
 /* 语义色 */
 --success-color          /* 成功/正确 */
+--success-light          /* 成功浅色 */
 --warning-color          /* 警告 */
+--warning-light          /* 警告浅色 */
 --danger-color           /* 危险/错误 */
+--danger-light           /* 危险浅色 */
 --info-color             /* 信息 */
+--info-light             /* 信息浅色 */
 ```
 
 ### 间距变量
@@ -85,10 +91,9 @@ app.mount('#app')
 ### 阴影变量
 
 ```css
---shadow-sm              /* 小阴影 */
---shadow-md              /* 中阴影 */
---shadow-lg              /* 大阴影 */
---shadow-primary         /* 主色阴影 */
+--shadow-sm              /* 小阴影：0 1px 3px rgba(0, 0, 0, 0.05) */
+--shadow-md              /* 中阴影：0 4px 12px rgba(0, 0, 0, 0.08) */
+--shadow-lg              /* 大阴影：0 8px 24px rgba(0, 0, 0, 0.12) */
 ```
 
 ### 过渡变量

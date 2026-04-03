@@ -77,7 +77,7 @@ cp .env.example .env
 VITE_MAIN_API_URL=http://localhost:8082
 
 # 插件后端 API 地址
-VITE_BACKEND_URL=http://localhost:8085
+VITE_BACKEND_URL=http://localhost:8087
 
 # 开发服务器端口（避免与其他插件冲突）
 VITE_PORT=3004
@@ -109,11 +109,11 @@ REDIS_PORT=6379
 REDIS_DB=2
 
 # 主后端 API 地址（用于调用 Plugin Auth API）
-MAIN_API_URL=http://localhost:8082
+MAIN_API_URL=http://localhost:8091
 PLUGIN_NAME=my-new-plugin
 ```
 
-> **注意**：`MAIN_API_URL` 必须指向主系统后端，插件通过它验证用户身份和权限。
+> **注意**：`MAIN_API_URL` 必须指向主系统后端 API（端口 8091 为测试环境，开发环境请根据实际配置调整）。插件通过它验证用户身份和权限。
 
 ---
 
@@ -132,7 +132,7 @@ npm run dev
 # 终端 2 - 启动后端
 cd backend
 npm run dev
-# 后端运行在 http://localhost:8085
+# 后端运行在 http://localhost:8085（PORT 由 backend/.env 配置）
 ```
 
 ### 方式二：Docker 部署
@@ -153,7 +153,7 @@ Docker 部署后的服务地址：
 | 服务 | 地址 |
 |------|------|
 | 前端 | http://localhost:3003 |
-| 后端 API | http://localhost:8085 |
+| 后端 API | http://localhost:8087 |
 | MySQL | localhost:3307 |
 | Redis | localhost:6380 |
 

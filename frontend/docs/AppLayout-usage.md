@@ -10,7 +10,7 @@
 - ✅ 抽屉式侧边栏（移动端）
 - ✅ 固定侧边栏（桌面端）
 - ✅ 权限控制导航项显示
-- ✅ 用户信息展示
+- ✅ 动态页面标题（根据路由 `meta.titleKey` 翻译）
 - ✅ 主题适配（6 种主题）
 - ✅ 多语言支持（5 种语言）
 
@@ -30,7 +30,7 @@ import AppLayout from './layout/AppLayout.vue'
 
 ### 2. 配置路由
 
-在 `router/index.ts` 中配置路由，并设置 `meta.title` 用于显示页面标题：
+在 `router/index.ts` 中配置路由，并设置 `meta.titleKey` 用于显示翻译后的页面标题：
 
 ```typescript
 import { createRouter, createWebHistory } from 'vue-router'
@@ -44,16 +44,16 @@ const routes = [
     component: AppLayout,
     children: [
       {
-        path: 'samples',
+        path: 'list',
         name: 'SampleList',
         component: SampleList,
-        meta: { title: '示例列表' }
+        meta: { titleKey: 'sample.list' }
       },
       {
-        path: 'samples/create',
+        path: 'create',
         name: 'CreateSample',
         component: SampleForm,
-        meta: { title: '创建示例' }
+        meta: { titleKey: 'sample.createSample' }
       }
     ]
   }
@@ -83,7 +83,7 @@ const PERMISSIONS = {
 
 ### 4. 自定义侧边栏导航
 
-修改 `AppLayout.vue` 中的侧边栏导航项：
+修改 `AppLayout.vue` 中的侧边栏导航项（实际路由路径为 `/list`、`/create` 等）：
 
 ```vue
 <nav class="sidebar-nav">
@@ -107,11 +107,11 @@ const PERMISSIONS = {
 ┌─────────────────────────────────────────────────────────┐
 │  AppLayout                                              │
 │  ┌──────────────┐  ┌──────────────────────────────────┐│
-│  │              │  │  Navbar                          ││
+│  │              │  │  Navbar (64px)                   ││
 │  │              │  │  ┌────────────────────────────┐  ││
-│  │  Sidebar     │  │  │ Menu | Title | User Info  │  ││
-│  │              │  │  └────────────────────────────┘  ││
-│  │  - Nav Item  │  │                                  ││
+│  │  Sidebar     │  │  │ Menu | Title               │  ││
+│  │  (280px)     │  │  └────────────────────────────┘  ││
+│  │              │  │                                  ││
 │  │  - Nav Item  │  │  Content Area                    ││
 │  │  - Nav Item  │  │  ┌────────────────────────────┐  ││
 │  │              │  │  │                            │  ││
@@ -126,8 +126,8 @@ const PERMISSIONS = {
 
 ### 桌面端（≥1024px）
 
-- 侧边栏固定显示在左侧（260px 宽度）
-- 主内容区自动调整左边距
+- 侧边栏固定显示在左侧（280px 宽度）
+- 主内容区自动调整左边距（`margin-left: 280px`）
 - 菜单按钮隐藏
 - 侧边栏关闭按钮隐藏
 
@@ -142,7 +142,6 @@ const PERMISSIONS = {
 
 - 侧边栏变为抽屉式（默认隐藏）
 - 导航栏 padding 减小
-- 用户名隐藏，只显示图标和角色标签
 - 内容区 padding 进一步减小
 
 ## CSS 变量使用
@@ -208,26 +207,26 @@ const PERMISSIONS = {
 
 ### 导航项权限控制
 
-使用 `v-if="can('permission-name')"` 控制导航项的显示：
+使用 `v-if="can('permission-name')"` 控制导航项的显示（实际权限标识参考 `usePermissions.ts`）：
 
 ```vue
 <router-link
-  v-if="can('list-samples')"
-  to="/samples"
+  v-if="can('view-sample')"
+  to="/list"
   class="sidebar-item"
 >
   <el-icon><List /></el-icon>
-  <span>{{ t('nav.sampleList') }}</span>
+  <span>{{ t('sample.list') }}</span>
 </router-link>
 ```
 
 ### 无权限提示
 
-当用户没有任何权限时，显示无权限提示：
+当用户没有任何权限时，显示无权限提示（使用 `layout.noPermission` 翻译键）：
 
 ```vue
 <div v-if="loaded && !hasAny()" class="no-permission">
-  <el-empty :description="t('common.noPermission')" />
+  <el-empty :description="t('layout.noPermission')" />
 </div>
 ```
 
@@ -235,11 +234,11 @@ const PERMISSIONS = {
 
 ### 使用翻译
 
-在模板中使用 `t()` 函数：
+在模板中使用 `t()` 函数（翻译键参考各语言文件）：
 
 ```vue
-<span>{{ t('nav.sampleList') }}</span>
-<span>{{ t('app.title') }}</span>
+<span>{{ t('sample.list') }}</span>
+<span>{{ t('sample.title') }}</span>
 ```
 
 ### 配置翻译文件
@@ -249,14 +248,12 @@ const PERMISSIONS = {
 ```typescript
 // zh-CN.ts
 export default {
-  app: {
-    title: '插件模板'
-  },
-  nav: {
-    sampleList: '示例列表',
+  sample: {
+    title: '插件模板',
+    list: '示例列表',
     createSample: '创建示例'
   },
-  common: {
+  layout: {
     noPermission: '您没有此插件的任何操作权限，请联系管理员配置'
   }
 }
@@ -268,12 +265,12 @@ export default {
 
 ```css
 .sidebar {
-  width: 280px; /* 默认 260px */
+  width: 320px; /* 默认 280px */
 }
 
 @media (min-width: 1024px) {
   .main-area {
-    margin-left: 280px; /* 与侧边栏宽度一致 */
+    margin-left: 320px; /* 与侧边栏宽度一致 */
   }
 }
 ```
@@ -282,7 +279,7 @@ export default {
 
 ```css
 .navbar {
-  height: 64px; /* 默认 56px */
+  height: 72px; /* 默认 64px */
 }
 ```
 
@@ -379,7 +376,7 @@ A: 检查是否正确绑定了 `@click="sidebarOpen = false"` 事件。
 
 ### Q: 用户信息不显示？
 
-A: 检查后端 API `/samples/me` 是否正确返回用户信息。
+A: 当前 `AppLayout.vue` 不包含用户信息展示区域。如需显示用户信息，可在 `navbar` 中自行添加，通过 `usePermissions` 获取用户数据，或调用后端 `/api/samples/me` 接口。
 
 ## 参考资源
 

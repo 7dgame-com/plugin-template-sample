@@ -28,6 +28,31 @@ services:
       - "3003:80"
     depends_on:
       - backend
+    environment:
+      # ========== 负载均衡配置 ==========
+      # 后端 API 地址（必需，至少配置一个 APP_API_1_URL）
+      # 格式：APP_API_N_URL，N 从 1 开始递增
+      - APP_API_1_URL=http://backend:8085
+      #
+      # --- 多后端负载均衡示例（可选） ---
+      # 配置第 2 个后端，启用 split_clients 加权分流 + 环形 failover
+      # - APP_API_2_URL=https://api-backup.example.com
+      #
+      # --- 自定义 Host 头（可选） ---
+      # 格式：APP_API_N_HOST，默认从对应 URL 中自动提取
+      # 当后端使用 CDN 或反向代理时，可能需要手动指定 Host 头
+      # - APP_API_1_HOST=api.example.com
+      # - APP_API_2_HOST=api-backup.example.com
+      #
+      # --- 流量权重（可选） ---
+      # 格式：APP_API_N_WEIGHT，未指定时所有后端平均分配
+      # 权重为相对值，例如 60:40 表示 60% 流量到后端 1，40% 到后端 2
+      # - APP_API_1_WEIGHT=60
+      # - APP_API_2_WEIGHT=40
+      #
+      # --- DNS 解析服务器（可选） ---
+      # 用于 Nginx 动态解析后端域名，默认 8.8.8.8 223.5.5.5
+      # - APP_RESOLVER=8.8.8.8 223.5.5.5
     restart: unless-stopped
 
   # ========== 后端服务 ==========

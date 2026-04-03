@@ -24,7 +24,8 @@ frontend/
 │   │   └── index.ts              # API 请求封装（Axios 实例、拦截器、CRUD 方法）
 │   ├── composables/
 │   │   ├── usePermissions.ts     # 权限检查组合式函数（调用 Plugin Auth API）
-│   │   ├── usePluginBridge.ts    # PostMessage 通信桥接（接收 INIT/TOKEN_UPDATE/DESTROY）
+│   │   ├── usePluginBridge.ts    # PostMessage 通信桥接（已废弃，请使用 usePluginMessageBridge）
+│   │   ├── usePluginMessageBridge.ts # 统一通信桥接（推荐使用，合并了状态管理和消息路由）
 │   │   └── useTheme.ts          # 主题适配（从主系统接收并应用主题）
 │   ├── i18n/
 │   │   ├── index.ts             # Vue I18n 配置（支持 URL 参数切换语言）
@@ -50,6 +51,14 @@ frontend/
 │   ├── App.vue                  # 根组件（初始化通信桥接和主题）
 │   ├── main.ts                  # 应用入口（注册 Element Plus、Pinia、Router、I18n）
 │   └── env.d.ts                 # TypeScript 环境类型声明
+├── docs/                        # 前端组件和 composable 使用文档
+│   ├── AppLayout-usage.md       # AppLayout 布局组件使用指南
+│   ├── i18n-usage.md            # 国际化使用指南
+│   ├── router-usage.md          # 路由配置使用指南
+│   ├── styles-usage.md          # 全局样式使用指南
+│   ├── theme-integration-example.md  # 主题集成示例
+│   ├── usePermissions-usage.md  # usePermissions 使用指南
+│   └── useTheme-usage.md        # useTheme 使用指南
 ├── .env.example                 # 环境变量模板
 ├── .eslintrc.cjs                # ESLint 代码检查配置
 ├── .prettierrc.cjs              # Prettier 代码格式化配置
@@ -67,7 +76,8 @@ frontend/
 | 文件 | 职责 |
 |------|------|
 | `api/index.ts` | 封装 Axios 实例，自动添加 JWT Token 到请求头，统一处理错误响应 |
-| `composables/usePluginBridge.ts` | 处理与主系统的 PostMessage 通信，接收初始化消息、Token 更新和销毁事件 |
+| `composables/usePluginMessageBridge.ts` | 统一通信桥接（推荐），处理与主系统的 PostMessage 通信，支持消息路由和自定义处理器 |
+| `composables/usePluginBridge.ts` | 旧版通信桥接（已废弃），请迁移到 usePluginMessageBridge |
 | `composables/usePermissions.ts` | 调用主后端 Plugin Auth API 检查用户权限，支持权限缓存 |
 | `composables/useTheme.ts` | 从主系统接收主题信息，动态应用 CSS 变量实现主题切换 |
 | `stores/sample.ts` | Pinia Store，管理示例数据的状态和 CRUD 操作 |
@@ -142,7 +152,7 @@ docs/
 
 | 文件 | 说明 |
 |------|------|
-| `docker-compose.yml` | 编排 4 个服务：前端（Nginx，端口 3003）、后端（Express，端口 8085）、MySQL（端口 3307 映射到 3306）、Redis（端口 6380 映射到 6379） |
+| `docker-compose.yml` | 编排 4 个服务：前端（Nginx，宿主机端口 3003）、后端（Express，宿主机端口 8087，容器内 8085）、MySQL（端口 3307 映射到 3306）、Redis（端口 6380 映射到 6379） |
 | `frontend/Dockerfile` | 前端多阶段构建：先用 Node.js 构建静态文件，再用 Nginx 提供服务 |
 | `frontend/nginx.conf` | Nginx 配置：静态文件服务 + SPA 路由回退 |
 | `backend/Dockerfile` | 后端镜像：多阶段构建，TypeScript 编译 + Node.js 运行环境 |

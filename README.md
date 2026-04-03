@@ -90,7 +90,7 @@
 - 速率限制：每用户每分钟最多 10 次刷新（可配置）
 
 **相关文件：**
-- 后端：`backend/src/tokenService.js`、`backend/src/routes/auth.js`
+- 后端：`backend/src/tokenService.ts`、`backend/src/routes/auth.ts`
 - 前端：`frontend/src/utils/token.ts`（`requestParentTokenRefresh`）、`frontend/src/api/index.ts`（401 自动重试）
 
 **关键原则：**
@@ -113,13 +113,20 @@ cp -r plugins/plugin-template-sample plugins/my-plugin
 # 2. 安装前端依赖
 cd plugins/my-plugin/frontend && npm install
 
-# 3. 配置环境变量
+# 3. 配置前端环境变量
 cp .env.example .env
 
-# 4. 启动开发服务器
+# 4. 启动前端开发服务器
 npm run dev
+# 前端运行在 http://localhost:3004
 
-# 5. 在主系统 plugins.json 中注册插件
+# 5. （Full_Stack_Plugin）安装后端依赖并启动
+cd ../backend && npm install
+cp .env.example .env
+npm run dev
+# 后端运行在 http://localhost:8085
+
+# 6. 在主系统 plugins.json 中注册插件
 ```
 
 ---
@@ -143,6 +150,7 @@ plugin-template-sample/
 │   │   ├── styles/            # 全局样式（CSS 变量）
 │   │   ├── utils/             # 工具函数（Token 管理 + Refresh Token）
 │   │   └── views/             # 页面组件（列表、表单）
+│   ├── docs/                  # 前端组件和 composable 使用文档
 │   └── ...                    # 配置文件（Vite、TS、ESLint、Prettier）
 ├── backend/                   # 后端应用（Node.js + Express）
 │   └── src/
@@ -456,7 +464,7 @@ const { isDark, themeName } = useTheme()
 VITE_MAIN_API_URL=http://localhost:8082
 
 # 插件后端 API 地址（仅 Full_Stack_Plugin 需要）
-VITE_BACKEND_URL=http://localhost:8085
+VITE_BACKEND_URL=http://localhost:8087
 
 # 开发服务器端口
 VITE_PORT=3004
@@ -481,7 +489,7 @@ REDIS_PORT=6379
 REDIS_DB=2
 
 # 主后端 API 地址（用于调用 Plugin Auth API）
-MAIN_API_URL=http://localhost:8082
+MAIN_API_URL=http://localhost:8091
 PLUGIN_NAME=my-plugin-name
 ```
 
@@ -536,7 +544,7 @@ docker-compose down
 | 服务 | 容器端口 | 宿主机端口 |
 |------|---------|-----------|
 | 前端（Nginx） | 80 | 3003 |
-| 后端（Express） | 8085 | 8085 |
+| 后端（Express） | 8085 | 8087 |
 | MySQL | 3306 | 3307 |
 | Redis | 6379 | 6380 |
 

@@ -52,6 +52,7 @@
 import { useTheme } from './composables/useTheme'
 
 // 初始化主题适配（自动从 URL 读取并监听 THEME_CHANGE 消息）
+// 模块加载时已自动执行，此处调用仅为获取响应式状态
 useTheme()
 </script>
 ```
@@ -61,7 +62,7 @@ useTheme()
 ```vue
 <template>
   <div class="my-component">
-    <p>当前主题: {{ currentTheme }}</p>
+    <p>当前主题: {{ themeName }}</p>
     <p>暗色模式: {{ isDark ? '是' : '否' }}</p>
   </div>
 </template>
@@ -69,7 +70,7 @@ useTheme()
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme'
 
-const { currentTheme, isDark } = useTheme()
+const { themeName, isDark } = useTheme()
 </script>
 ```
 
@@ -114,54 +115,22 @@ const { currentTheme, isDark } = useTheme()
 
 ```typescript
 interface UseThemeReturn {
-  /** 当前主题名称 */
-  currentTheme: Ref<string>
-  
-  /** 是否为暗色主题 */
+  /** 是否为暗色主题（响应式，全局单例） */
   isDark: Ref<boolean>
   
-  /** 检查主题是否为暗色 */
-  checkIsDark: (themeName: string) => boolean
-  
-  /** 应用主题样式到 DOM */
-  applyTheme: (themeName: string) => void
+  /** 当前主题名称（响应式，全局单例） */
+  themeName: Ref<string>
 }
 ```
 
-### 方法说明
+### 说明
 
-#### `checkIsDark(themeName: string)`
+`useTheme` 返回两个响应式状态，均为模块级全局单例，多次调用共享同一状态。
 
-检查指定主题是否为暗色主题。
+- `isDark`：当前主题是否为暗色（`deep-space` 或 `cyber-tech` 时为 `true`）
+- `themeName`：当前主题名称字符串（如 `'modern-blue'`、`'deep-space'` 等）
 
-**参数：**
-- `themeName`: 主题名称（如 'deep-space', 'cyber-tech', 'modern-blue' 等）
-
-**返回值：**
-- `boolean`: 如果是暗色主题返回 `true`，否则返回 `false`
-
-**示例：**
-```typescript
-const { checkIsDark } = useTheme()
-
-console.log(checkIsDark('deep-space'))  // true
-console.log(checkIsDark('modern-blue')) // false
-```
-
-#### `applyTheme(themeName: string)`
-
-手动应用指定主题。通常不需要手动调用，因为 `useTheme` 会自动从 URL 读取并监听主题变化。
-
-**参数：**
-- `themeName`: 主题名称
-
-**示例：**
-```typescript
-const { applyTheme } = useTheme()
-
-// 手动切换到暗色主题
-applyTheme('deep-space')
-```
+主题初始化和消息监听在模块加载时自动执行，无需手动调用初始化方法。
 
 ## 可用的 CSS 变量
 
@@ -307,10 +276,10 @@ const { isDark } = useTheme()
 import { watch } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 
-const { currentTheme, isDark } = useTheme()
+const { themeName, isDark } = useTheme()
 
 // 监听主题名称变化
-watch(currentTheme, (newTheme, oldTheme) => {
+watch(themeName, (newTheme, oldTheme) => {
   console.log(`主题从 ${oldTheme} 切换到 ${newTheme}`)
   
   // 执行主题切换后的逻辑
