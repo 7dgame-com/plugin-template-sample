@@ -49,7 +49,10 @@
         <div class="navbar-spacer" />
       </header>
       <main class="content">
-        <div v-if="loaded && !hasAny()" class="no-permission">
+        <div v-if="!ready" class="loading-state">
+          <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+        </div>
+        <div v-else-if="loaded && !hasAny()" class="no-permission">
           <el-empty :description="t('layout.noPermission')" />
         </div>
         <router-view v-else />
@@ -62,7 +65,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Close, Plus, Fold, List } from '@element-plus/icons-vue'
+import { Close, Plus, Fold, List, Loading } from '@element-plus/icons-vue'
 import { usePermissions } from '../composables/usePermissions'
 
 const { t } = useI18n()
@@ -70,6 +73,7 @@ const route = useRoute()
 const { fetchAllowedActions, can, hasAny, loaded } = usePermissions()
 
 const sidebarOpen = ref(false)
+const ready = ref(false)
 
 /**
  * 当前页面标题（根据路由 meta.titleKey 动态获取翻译）
@@ -84,6 +88,8 @@ onMounted(async () => {
     await fetchAllowedActions()
   } catch {
     // 静默失败，不影响页面使用
+  } finally {
+    ready.value = true
   }
 })
 </script>
@@ -241,6 +247,14 @@ onMounted(async () => {
 .content {
   flex: 1;
   padding: var(--spacing-lg);
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
 }
 
 .no-permission {
